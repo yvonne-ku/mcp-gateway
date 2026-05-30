@@ -1,0 +1,16 @@
+server:
+  port: 8081
+
+spring:
+  application:
+    name: smart-home-light-service
+  ai:
+    mcp:
+      server:
+        name: smart-home-light-service
+        version: 0.0.1
+
+logging:
+  level:
+    org.example.light: debug
+    root: info
