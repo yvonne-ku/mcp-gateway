@@ -22,59 +22,51 @@ public class LightService {
     public LightService () {
         // 初始化用户
         User user1 = new User();
-        user1.setId("1");
+        user1.setId("user-00001");
         user1.setName("张三");
         user1.setDeviceIds(List.of());
 
         User user2 = new User();
-        user2.setId("2");
+        user2.setId("user-00002");
         user2.setName("李四");
         user2.setDeviceIds(List.of());
 
         // 初始化客厅灯
         HomeDevice livingRoomLight = new HomeDevice();
-        livingRoomLight.setId("1");
+        livingRoomLight.setId("light-00001");
         livingRoomLight.setSpeciName("客厅主灯");
         livingRoomLight.setStatus(HomeDeviceStatus.ONLINE);
-
         // Home
-        livingRoomLight.setHomeId("1");
-
+        livingRoomLight.setHomeId("home-00001");
         // User
-        user1.getDeviceIds().add("1");
-
+        user1.getDeviceIds().add("light-00001");
         // Device
-        livingRoomLight.setDeviceId("1");
+        livingRoomLight.setDeviceId("light-00001");
         livingRoomLight.setDeviceName("灯");
         livingRoomLight.setDeviceType(DeviceType.LIGHT);
         livingRoomLight.setDeviceProperties(new HashMap<>());
         livingRoomLight.getDeviceProperties().put("brightness", 80);
         livingRoomLight.getDeviceProperties().put("color", "white");
-
+        deviceStore.put("light-00001", livingRoomLight);
 
         // 初始化卧室灯
         HomeDevice bedroomLight = new HomeDevice();
-        bedroomLight.setId("2");
+        bedroomLight.setId("light-00002");
         bedroomLight.setSpeciName("卧室台灯");
         bedroomLight.setStatus(HomeDeviceStatus.ONLINE);
-
         // User
-        user1.getDeviceIds().add("2");
-        user2.getDeviceIds().add("2");
-
+        user1.getDeviceIds().add("light-00002");
+        user2.getDeviceIds().add("light-00002");
         // Home
-        bedroomLight.setHomeId("1");
-
+        bedroomLight.setHomeId("home-00001");
         // Device
-        bedroomLight.setDeviceId("2");
+        bedroomLight.setDeviceId("light-00002");
         bedroomLight.setDeviceName("灯");
         bedroomLight.setDeviceType(DeviceType.LIGHT);
         bedroomLight.setDeviceProperties(new HashMap<>());
         bedroomLight.getDeviceProperties().put("brightness", 50);
         bedroomLight.getDeviceProperties().put("color", "warm");
-
-        deviceStore.put("1", livingRoomLight);
-        deviceStore.put("2", bedroomLight);
+        deviceStore.put("light-00002", bedroomLight);
     }
 
     /**
@@ -100,8 +92,8 @@ public class LightService {
     /**
      * 控制灯光开关
      */
-    @Tool(description = "开关灯光")
-    public String powerLight(
+    @Tool(description = "控制灯光开关")
+    public String controlLight(
             @ToolParam(description = "设备ID") String deviceId,
             @ToolParam(description = "操作：on 开灯，off 关灯") String action) {
 

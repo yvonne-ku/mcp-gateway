@@ -12,5 +12,5 @@ spring:
 
 logging:
   level:
-    org.example.light: debug
+    com.noinch.mcp.demo.smarthome.server.light: debug
     root: info

@@ -13,6 +13,7 @@
 
     <modules>
         <module>smart-home-server-light</module>
+        <module>smart-home-server-lock</module>
     </modules>
 
     <dependencies>
