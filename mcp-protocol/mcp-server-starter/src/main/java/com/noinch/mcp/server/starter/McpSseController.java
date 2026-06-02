@@ -26,7 +26,7 @@ import java.util.concurrent.ConcurrentHashMap;
  * 协议流程：
  * 一个伪双工通信，SSE 通道 + POST 通道（全双工要求双向数据通过一个连接一个通道）
  * 1. 客户端 GET /sse → 建立 SSE 连接，服务端下发 sessionId 和消息端点地址，SSE 协议支持服务端向客户端的单向流式、分段、多次的推送
- * 2. 客户端 POST /messages?sessionId=xxx → 发送 JSON-RPC 请求，来调用工具的回调方法
+ * 2. 客户端 POST /messages?sessionId=xxx → 发送 JSON-RPC 请求，来获得工具信息和调用工具
  */
 @Slf4j
 @RestController
@@ -136,7 +136,7 @@ public class McpSseController {
                 Map<String, Object> result = Map.of(
                         "protocolVersion", properties.getProtocolVersion(),
                         "capabilities", properties.getCapabilities(),
-                        "serverInfo", Map.of("name", properties.getName(), "version", properties.getVersion())
+                        "serverInfo", properties.toServerInfo()
                 );
                 response = JsonRpcCodec.successResponse(request.getId(), result);
             }

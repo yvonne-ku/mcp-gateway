@@ -15,8 +15,8 @@ import java.util.Optional;
 public class JsonRpcCodec {
 
     private static final ObjectMapper MAPPER = new ObjectMapper()
-            .registerModule(new Jdk8Module())
-            .configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false);
+            .registerModule(new Jdk8Module())   // 支持 Java8 新类型
+            .configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false);   // 遇到 JSON 里多余的未知字段，不报错、直接忽略
 
     /**
      * 将 JSON 字符串解析为 JsonRpcRequest 或 JsonRpcNotification
@@ -42,14 +42,14 @@ public class JsonRpcCodec {
      * 将请求 ID 和结果包装为成功响应 JSON 字符串
      */
     public static String successResponse(Object id, Object result) {
-        return toJson(new JsonRpcResponse("2.0", id, result));
+        return toJson(JsonRpcResponse.builder().id(id).result(result).build());
     }
 
     /**
      * 将请求 ID 和错误包装为错误响应 JSON 字符串
      */
     public static String errorResponse(Object id, JsonRpcError error) {
-        return toJson(new JsonRpcErrorResponse("2.0", id, error));
+        return toJson(JsonRpcResponse.builder().id(id).error(error).build());
     }
 
     /**

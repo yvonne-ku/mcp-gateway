@@ -9,11 +9,13 @@
     </parent>
 
     <artifactId>demo-smart-home</artifactId>
+    <description>Demo 应用 — 使用 Spring AI 的演示应用</description>
     <packaging>pom</packaging>
 
     <modules>
         <module>smart-home-core</module>
-        <module>smart-home-server</module>
-        <module>mcp-client</module>
+        <module>light-server</module>
+        <module>lock-server</module>
+        <module>client</module>
     </modules>
 </project>

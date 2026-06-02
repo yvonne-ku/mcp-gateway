@@ -1,0 +1,10 @@
+server:
+  port: 8080
+
+mcp:
+  client:
+    servers:
+      - name: light-server
+        url: http://localhost:8083
+      - name: lock-server
+        url: http://localhost:8084

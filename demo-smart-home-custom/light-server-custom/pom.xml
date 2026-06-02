@@ -1,0 +1,35 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+
+    <parent>
+        <groupId>com.noinch.mcp</groupId>
+        <artifactId>demo-smart-home-custom</artifactId>
+        <version>0.0.1-SNAPSHOT</version>
+    </parent>
+
+    <artifactId>light-server-custom</artifactId>
+    <description>灯光 MCP Server — 演示 mcp-server-starter 用法</description>
+
+    <dependencies>
+        <dependency>
+            <groupId>com.noinch.mcp</groupId>
+            <artifactId>smart-home-core-custom</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>com.noinch.mcp</groupId>
+            <artifactId>mcp-server-starter</artifactId>
+        </dependency>
+    </dependencies>
+
+    <build>
+        <plugins>
+            <plugin>
+                <groupId>org.springframework.boot</groupId>
+                <artifactId>spring-boot-maven-plugin</artifactId>
+            </plugin>
+        </plugins>
+    </build>
+</project>

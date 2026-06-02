@@ -2,6 +2,8 @@ package com.noinch.mcp.client.starter;
 
 import com.noinch.mcp.protocol.core.jsonrpc.*;
 import com.noinch.mcp.protocol.core.mcp.model.CallToolResult;
+import com.noinch.mcp.protocol.core.mcp.model.ClientCapabilities;
+import com.noinch.mcp.protocol.core.mcp.model.ClientInfo;
 import com.noinch.mcp.protocol.core.mcp.model.ToolDefinition;
 import jakarta.annotation.PreDestroy;
 import lombok.extern.slf4j.Slf4j;
@@ -122,8 +124,8 @@ public class McpClient {
 
         Map<String, Object> params = Map.of(
                 "protocolVersion", "2025-11-25",
-                "capabilities", Map.of(),
-                "clientInfo", Map.of("name", "mcp-client-starter", "version", "1.0.0")
+                "capabilities", new ClientCapabilities(),
+                "clientInfo", ClientInfo.builder().name("mcp-client-starter").version("1.0.0").build()
         );
 
         int id = requestId.getAndIncrement();
@@ -153,23 +155,15 @@ public class McpClient {
     private void handleSseMessage(String data) {
         try {
             JsonRpcResponse response = JsonRpcCodec.fromJson(data, JsonRpcResponse.class);
-            if (response != null && response.getId() != null && response.getResult() != null) {
+            if (response != null && response.getId() != null) {
                 CompletableFuture<JsonRpcResponse> future = pendingRequests.remove(response.getId());
                 if (future != null) {
-                    future.complete(response);
-                    return;
-                }
-            }
-        } catch (Exception ignored) {
-        }
-
-        try {
-            JsonRpcErrorResponse errorResponse = JsonRpcCodec.fromJson(data, JsonRpcErrorResponse.class);
-            if (errorResponse != null && errorResponse.getId() != null) {
-                CompletableFuture<JsonRpcResponse> future = pendingRequests.remove(errorResponse.getId());
-                if (future != null) {
-                    future.completeExceptionally(
-                            new RuntimeException("JSON-RPC error: " + errorResponse.getError()));
+                    if (response.getError() != null) {
+                        future.completeExceptionally(
+                                new RuntimeException("JSON-RPC error: " + response.getError()));
+                    } else {
+                        future.complete(response);
+                    }
                     return;
                 }
             }

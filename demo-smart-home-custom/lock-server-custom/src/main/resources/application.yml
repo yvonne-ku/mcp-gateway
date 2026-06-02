@@ -1,0 +1,7 @@
+server:
+  port: 8084
+
+mcp:
+  server:
+    name: lock-server
+    version: 1.0.0
