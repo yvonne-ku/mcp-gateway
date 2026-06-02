@@ -1,0 +1,11 @@
+server:
+  port: 8088
+
+spring:
+  application:
+    name: mcp-protocol-client
+
+logging:
+  level:
+    com.noinch.mcp.protocol: debug
+    root: info

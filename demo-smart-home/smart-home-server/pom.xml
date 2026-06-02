@@ -23,6 +23,7 @@
             <version>${project.version}</version>
         </dependency>
 
+        <!-- MCP Server -->
         <dependency>
             <groupId>org.springframework.ai</groupId>
             <artifactId>spring-ai-starter-mcp-server-webflux</artifactId>

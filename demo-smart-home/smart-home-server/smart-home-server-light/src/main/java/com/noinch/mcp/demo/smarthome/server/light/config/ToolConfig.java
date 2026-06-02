@@ -8,7 +8,6 @@ import org.springframework.context.annotation.Configuration;
 
 @Configuration
 public class ToolConfig {
-
     @Bean
     public ToolCallbackProvider toolCallbackProvider(LightService lightService) {
         return MethodToolCallbackProvider.builder()

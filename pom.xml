@@ -14,7 +14,10 @@
     <packaging>pom</packaging>
 
     <modules>
+        <module>core</module>
+        <module>management</module>
         <module>demo-smart-home</module>
+        <module>mcp-protocol</module>
     </modules>
 
     <properties>
