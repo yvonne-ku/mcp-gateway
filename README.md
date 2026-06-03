@@ -1,14 +1,38 @@
 # MCP-Gateway
 
-### 1. demo-smart-phone（基于 Spring AI 提供的 MCP 协议，实现的 MCP Server And MCP Client）
-- smart-home-core：提供了智能家居场景的实体类
-- smart-home-server： 进行智能家居场景 Tools 的定义和对外暴露
-  - 通过 @Tool 定义工具
-  - 通过 ToolCallbackProvider 注册工具到应用上下文
-  - smart-home-server-light 和 smart-home-server-lock 模块分别作为独立的 MCP Server 启动，
-  - 对外暴露 SSE 连接端口，等待客户端建立 SSE 连接，实现工具的推送
+### 1. demo-smart-phone（基于 Spring AI MCP 协议栈实现的 MCP Server 与 MCP Client）
+- smart-home-core：智能家居场景的实体类定义
+- smart-home-server：定义并注册智能家居工具
+  - 通过 @Tool 注解声明工具方法
+  - 通过 ToolCallbackProvider 将工具注册到 Spring 应用上下文
+  - smart-home-server-light 和 smart-home-server-lock 分别作为独立 MCP Server 启动
+  - 对外暴露 SSE 端点，等待客户端连接后推送工具列表
 - smart-home-client
-  - 客户端通过配置地 SSE 端点路径，与服务端建立 SSE 长连接 
-  - 连接建立后，服务端可主动向客户端推送 Tools 工具 
-  - 客户端通过 AsyncMcpToolCallbackProvider 把服务端推送的远程工具，包装成本地可调用的 ToolCallback 
-  - 客户端可以像调用本地工具一样，无缝调用远程服务端的工具
+  - 通过配置的 SSE 端点路径与服务端建立 SSE 长连接
+  - 连接建立后接收服务端主动推送的工具列表
+  - 通过 AsyncMcpToolCallbackProvider 将远程工具包装为本地 ToolCallback
+  - 对上层应用透明，调用远程工具如同调用本地工具
+
+### 2. mcp-protocol-20251125（自研 MCP 协议实现，遵循 2025-11-25 稳定版规范）
+- **mcp-protocol-core**：JSON-RPC 2.0 编解码、MCP 模型定义、McpToolRegistry 注册中心、@McpTool 注解
+- **mcp-server-starter**：基于 Servlet MVC + SSE 的 MCP Server 自动配置
+  - GET /mcp → 建立 SSE 长连接，响应头返回 Mcp-Session-Id
+  - POST /mcp → 接收 JSON-RPC 请求（initialize / tools/list / tools/call / ping），处理完通过 SSE 事件推送响应
+  - DELETE /mcp → 终止会话，清理服务端资源
+  - 支持 Origin 白名单校验（防 DNS rebinding）
+  - 自动发现并注册 @McpTool 注解的工具方法
+- **mcp-client-starter**：基于 WebClient + SSE 的 MCP Client 自动配置
+  - 从配置文件读取 MCP Server 列表，自动建立连接并进行 initialize/initialized 三次握手
+  - 支持 listTools / callTool 等标准 MCP 方法调用
+  - 通过 Map\<String, McpClient\> 暴露给业务模块，按服务名索引
+
+### 3. demo-smart-home-custom（自研 mcp-protocol-20251125 的智能家居演示应用）
+- **smart-home-core-custom**：智能家居场景实体类（设备、命令、状态枚举等）
+- **light-server-custom**：灯光 MCP Server（端口 8083）
+  - 通过 @McpTool 定义灯光控制工具（开关、亮度调节、颜色设置等）
+- **lock-server-custom**：门锁 MCP Server（端口 8084）
+  - 通过 @McpTool 定义门锁控制工具（开关锁、电池查询、临时密码等）
+- **client-custom**：统一 MCP Client（端口 8080）
+  - 自动连接 light-server 和 lock-server，获取远程工具列表
+  - 对外暴露 REST API（/api/tool/list、/api/tool/call、/api/tool/search）
+  - 根据工具名或服务名路由到对应的 MCP Server 执行工具调用

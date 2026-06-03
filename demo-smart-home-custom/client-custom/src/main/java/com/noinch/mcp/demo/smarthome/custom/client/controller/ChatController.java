@@ -18,7 +18,7 @@ public class ChatController {
         this.mcpClients = mcpClients;
     }
 
-    @GetMapping("/tools")
+    @GetMapping("/tool/list")
     public Map<String, Object> listAllTools() {
         Map<String, Object> result = new LinkedHashMap<>();
         for (var entry : mcpClients.entrySet()) {
