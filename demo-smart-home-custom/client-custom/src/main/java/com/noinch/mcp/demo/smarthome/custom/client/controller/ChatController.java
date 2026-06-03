@@ -59,13 +59,13 @@ public class ChatController {
         );
     }
 
-    @GetMapping("/chat")
-    public List<String> chat(@RequestParam String prompt) {
+    @GetMapping("/tool/search")
+    public List<String> searchTools(@RequestParam String keywords) {
         return mcpClients.values().stream()
                 .flatMap(client -> client.listTools().stream())
-                .filter(t -> t.getName().toLowerCase().contains(prompt.toLowerCase())
+                .filter(t -> t.getName().toLowerCase().contains(keywords.toLowerCase())
                         || (t.getDescription() != null
-                            && t.getDescription().toLowerCase().contains(prompt.toLowerCase())))
+                        && t.getDescription().toLowerCase().contains(keywords.toLowerCase())))
                 .map(t -> t.getName() + ": " + t.getDescription())
                 .toList();
     }

@@ -6,21 +6,31 @@
 
     <parent>
         <groupId>com.noinch.mcp</groupId>
-        <artifactId>demo-smart-home-custom</artifactId>
+        <artifactId>mcp-protocol-20251125</artifactId>
         <version>0.0.1-SNAPSHOT</version>
     </parent>
 
-    <artifactId>client-custom</artifactId>
-    <description>智能家居客户端 — 演示 mcp-client-starter 用法</description>
+    <artifactId>mcp-server-starter</artifactId>
+    <description>MCP Server SSE Starter — auto-configures SSE controller, protocol handshake, and @McpTool discovery</description>
 
     <dependencies>
         <dependency>
             <groupId>com.noinch.mcp</groupId>
-            <artifactId>mcp-client-starter</artifactId>
+            <artifactId>mcp-protocol-core</artifactId>
         </dependency>
         <dependency>
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-web</artifactId>
         </dependency>
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-autoconfigure</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-configuration-processor</artifactId>
+            <optional>true</optional>
+        </dependency>
     </dependencies>
+
 </project>
