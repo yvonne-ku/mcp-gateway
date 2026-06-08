@@ -9,7 +9,7 @@ import java.util.List;
 import java.util.Map;
 
 @Data
-@ConfigurationProperties(prefix = "mcp.server")
+@ConfigurationProperties(prefix = "noinch.mcp.server")
 public class McpServerProperties {
 
     /** MCP 服务器默认名称，Client 端用来做日志/路由区分 */

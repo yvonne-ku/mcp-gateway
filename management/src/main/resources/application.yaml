@@ -1,3 +1,27 @@
 spring:
   application:
     name: management
+  data:
+    redis:
+      host: ${REDIS_HOST:localhost}
+      port: ${REDIS_PORT:6379}
+
+noinch:
+  mcp:
+    auth:
+      enabled: true                     # 全局认证开关
+      # JWT 配置
+      jwt:
+        secret: "NoinchMCPGatewayDefaultSecretKeyMustBe512BitsLongForHS512Algorithm"
+        expiration: 24h
+        issuer: "mcp-gateway"
+      # 路径白名单（Ant 风格）
+      whitelist:
+        - "/health"
+        - "/actuator/**"
+        - "/api/auth/**"
+      # IP 白名单（可选）
+      enable-ip-whitelist: false
+      allowed-ips:
+        - "127.0.0.1"
+        - "::1"

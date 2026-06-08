@@ -8,21 +8,26 @@
         <version>0.0.1-SNAPSHOT</version>
     </parent>
 
-    <artifactId>mcp-gateway-management</artifactId>
+    <artifactId>management</artifactId>
 
     <dependencies>
         <dependency>
             <groupId>com.noinch.mcp</groupId>
-            <artifactId>mcp-gateway-core</artifactId>
+            <artifactId>core</artifactId>
             <version>${project.version}</version>
-            <scope>compile</scope>
         </dependency>
-<!--        <dependency>-->
-<!--            <groupId>com.noinch.mcp</groupId>-->
-<!--            <artifactId>persist</artifactId>-->
-<!--            <version>${project.version}</version>-->
-<!--            <scope>compile</scope>-->
-<!--        </dependency>-->
+
+        <dependency>
+            <groupId>com.noinch.mcp</groupId>
+            <artifactId>persist</artifactId>
+            <version>${project.version}</version>
+        </dependency>
+
+        <dependency>
+            <groupId>com.noinch.mcp</groupId>
+            <artifactId>auth</artifactId>
+            <version>${project.version}</version>
+        </dependency>
 
         <dependency>
             <groupId>org.springframework.data</groupId>
@@ -34,31 +39,6 @@
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-webflux</artifactId>
         </dependency>
-
-        <!-- YAML处理 -->
-        <dependency>
-            <groupId>org.yaml</groupId>
-            <artifactId>snakeyaml</artifactId>
-        </dependency>
-
-        <!-- Jackson for JSON处理 -->
-        <dependency>
-            <groupId>com.fasterxml.jackson.core</groupId>
-            <artifactId>jackson-databind</artifactId>
-        </dependency>
-
-<!--        &lt;!&ndash; 如果需要Prometheus监控，添加以下依赖 &ndash;&gt;-->
-<!--        <dependency>-->
-<!--            <groupId>io.micrometer</groupId>-->
-<!--            <artifactId>micrometer-registry-prometheus</artifactId>-->
-<!--            <scope>runtime</scope>-->
-<!--        </dependency>-->
-
-<!--        &lt;!&ndash; Spring Boot Actuator for monitoring &ndash;&gt;-->
-<!--        <dependency>-->
-<!--            <groupId>org.springframework.boot</groupId>-->
-<!--            <artifactId>spring-boot-starter-actuator</artifactId>-->
-<!--        </dependency>-->
     </dependencies>
 
     <build>

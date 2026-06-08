@@ -18,7 +18,6 @@
         <module>smart-home-core-custom</module>
         <module>light-server-custom</module>
         <module>lock-server-custom</module>
-        <module>client-custom</module>
     </modules>
 
     <dependencyManagement>

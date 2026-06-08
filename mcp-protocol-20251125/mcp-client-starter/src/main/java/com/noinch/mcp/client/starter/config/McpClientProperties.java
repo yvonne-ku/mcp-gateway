@@ -7,7 +7,7 @@ import java.util.ArrayList;
 import java.util.List;
 
 @Data
-@ConfigurationProperties(prefix = "mcp.client")
+@ConfigurationProperties(prefix = "noinch.mcp.client")
 public class McpClientProperties {
 
     /** 本客户端的名称，用于 initialize 握手时告知服务端 */

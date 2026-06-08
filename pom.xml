@@ -15,8 +15,10 @@
 
     <modules>
         <module>core</module>
+        <module>persist</module>
         <module>management</module>
-        <module>demo-smart-home</module>
+        <module>auth</module>
+        <module>proxy</module>
         <module>demo-smart-home-custom</module>
         <module>mcp-protocol-20251125</module>
     </modules>
@@ -57,6 +59,16 @@
             <dependency>
                 <groupId>com.noinch.mcp</groupId>
                 <artifactId>mcp-client-starter</artifactId>
+                <version>${project.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>com.noinch.mcp</groupId>
+                <artifactId>auth</artifactId>
+                <version>${project.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>com.noinch.mcp</groupId>
+                <artifactId>mcp-client</artifactId>
                 <version>${project.version}</version>
             </dependency>
         </dependencies>

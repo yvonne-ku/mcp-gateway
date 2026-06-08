@@ -1,0 +1,267 @@
+package com.noinch.mcp.gateway.management.service.impl;
+
+import com.noinch.mcp.gateway.core.dto.AuthKeyApplyRequest;
+import com.noinch.mcp.gateway.core.dto.AuthKeyResponse;
+import com.noinch.mcp.gateway.core.dto.BatchAuthKeyApplyRequest;
+import com.noinch.mcp.gateway.core.dto.BatchAuthKeyApplyResponse;
+import com.noinch.mcp.gateway.core.entity.AuthKeyEntity;
+import com.noinch.mcp.gateway.core.entity.MCPServiceEntity;
+import com.noinch.mcp.gateway.core.tool.AuthKeyGenerator;
+import com.noinch.mcp.gateway.management.service.AuthKeyService;
+import com.noinch.mcp.gateway.persist.mapper.AuthKeyMapper;
+import com.noinch.mcp.gateway.persist.mapper.MCPServiceMapper;
+import lombok.AllArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageImpl;
+import org.springframework.data.domain.Pageable;
+import org.springframework.stereotype.Service;
+import reactor.core.publisher.Flux;
+import reactor.core.publisher.Mono;
+import reactor.core.scheduler.Schedulers;
+
+import java.time.LocalDateTime;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.stream.Collectors;
+
+@Slf4j
+@Service
+@AllArgsConstructor
+public class AuthKeyServiceImpl implements AuthKeyService {
+
+    private final AuthKeyMapper authKeyMapper;
+    private final MCPServiceMapper serviceMapper;
+
+    @Override
+    public Mono<AuthKeyResponse> applyAuthKey(AuthKeyApplyRequest request) {
+        return Mono.fromCallable(() -> {
+            // 验证服务合法性
+            MCPServiceEntity service = serviceMapper.findByServiceId(request.getServiceId());
+            if (service == null) {
+                throw new IllegalArgumentException("Service not found: " + request.getServiceId());
+            }
+
+            // 检查用户是否已有该服务器的有效密钥
+            List<AuthKeyEntity> existingKeys = authKeyMapper.findByUserIdAndServiceId(request.getUserId(), request.getServiceId());
+            long activeKeysCount = existingKeys.stream()
+                    .filter(key -> key.getIsActive() && (key.getExpiresAt() == null || key.getExpiresAt().isAfter(LocalDateTime.now())))
+                    .count();
+            if (activeKeysCount > 0) {
+                throw new IllegalStateException("User already has active key for this service");
+            }
+
+            // 生成新的密钥
+            AuthKeyEntity authKey = generateAuthKey(request.getUserId(), request.getServiceId(), request.getExpireHours());
+            authKeyMapper.insert(authKey);
+            log.info("Generated auth key for user {} and service {}", request.getUserId(), request.getServiceId());
+
+            return buildAuthKeyResponse(authKey, service.getName());
+        }).subscribeOn(Schedulers.boundedElastic());
+    }
+
+    @Override
+    public Mono<BatchAuthKeyApplyResponse> batchApplyAuthKeys(BatchAuthKeyApplyRequest request) {
+        return Mono.fromCallable(() -> {
+            List<AuthKeyResponse> successKeys = new ArrayList<>();
+            List<BatchAuthKeyApplyResponse.FailedService> failedServices = new ArrayList<>();
+            List<String> skippedServices = new ArrayList<>();
+
+            for (String serviceId : request.getServiceIds()) {
+                try {
+                    // 验证服务合法性
+                    MCPServiceEntity service = serviceMapper.findByServiceId(serviceId);
+                    if (service == null) {
+                        failedServices.add(BatchAuthKeyApplyResponse.FailedService.builder()
+                                .serviceId(serviceId)
+                                .reason("Service not found")
+                                .build());
+                        continue;
+                    }
+
+                    // 检查用户是否已有该服务器的有效密钥
+                    List<AuthKeyEntity> existingKeys = authKeyMapper.findByUserIdAndServiceId(request.getUserId(), serviceId);
+                    long activeKeysCount = existingKeys.stream()
+                            .filter(key -> key.getIsActive() && (key.getExpiresAt() == null || key.getExpiresAt().isAfter(LocalDateTime.now())))
+                            .count();
+                    if (activeKeysCount > 0) {
+                        if (request.getSkipExisting()) {
+                            skippedServices.add(serviceId);
+                            log.info("Skipped service {} for user {} - already has active key", serviceId, request.getUserId());
+                            continue;
+                        }
+                        else {
+                            failedServices.add(BatchAuthKeyApplyResponse.FailedService.builder()
+                                    .serviceId(serviceId)
+                                    .reason("User already has active key for this service")
+                                    .build());
+                            continue;
+                        }
+                    }
+
+                    // 生成新的密钥
+                    AuthKeyEntity authKey = generateAuthKey(request.getUserId(), serviceId, request.getExpireHours());
+                    authKeyMapper.insert(authKey);
+                    AuthKeyResponse authKeyResponse = buildAuthKeyResponse(authKey, service.getName());
+                    successKeys.add(authKeyResponse);
+                    log.info("Generated auth key for user {} and service {}", request.getUserId(), serviceId);
+
+                } catch (Exception e) {
+                    log.error("Failed to generate auth key for user {} and service {}: {}",
+                            request.getUserId(), serviceId, e.getMessage());
+                    failedServices.add(BatchAuthKeyApplyResponse.FailedService.builder()
+                            .serviceId(serviceId)
+                            .reason(e.getMessage())
+                            .build());
+                }
+            }
+
+            return BatchAuthKeyApplyResponse.builder()
+                    .successKeys(successKeys)
+                    .failedServices(failedServices)
+                    .skippedServices(skippedServices)
+                    .totalRequested(request.getServiceIds().size())
+                    .successCount(successKeys.size())
+                    .failedCount(failedServices.size())
+                    .skippedCount(skippedServices.size())
+                    .build();
+        }).subscribeOn(Schedulers.boundedElastic());
+    }
+
+    @Override
+    public Flux<AuthKeyResponse> getUserAuthKeys(String userId) {
+        return Mono.fromCallable(() -> authKeyMapper.findByUserId(userId))
+                .subscribeOn(Schedulers.boundedElastic())
+                .flatMapMany(keys -> Flux.fromIterable(keys)
+                        .map(key -> {
+                            MCPServiceEntity service = serviceMapper.findByServiceId(key.getMCPServiceId());
+                            return buildAuthKeyResponse(key, service != null ? service.getName() : "Unknown");
+                        }));
+    }
+
+    @Override
+    public Mono<Page<AuthKeyResponse>> getAllAuthKeys(String userId, String serviceId, Boolean isActive, Pageable pageable) {
+        return Mono.fromCallable(() -> {
+            // 数据
+            List<AuthKeyEntity> keys = authKeyMapper.findByConditions(userId, serviceId, isActive,
+                    (int) pageable.getOffset(), pageable.getPageSize());
+            List<AuthKeyResponse> responses = keys.stream()
+                    .map(key -> {
+                        MCPServiceEntity service = serviceMapper.findByServiceId(key.getMCPServiceId());
+                        return buildAuthKeyResponse(key, service != null ? service.getName() : "Unknown");
+                    })
+                    .collect(Collectors.toList());
+
+            // 统计总数
+            long total = authKeyMapper.countByConditions(userId, serviceId, isActive);
+
+            return (Page<AuthKeyResponse>) new PageImpl<>(responses, pageable, total);
+        }).subscribeOn(Schedulers.boundedElastic());
+    }
+
+    @Override
+    public Mono<Void> revokeAuthKey(Long keyId) {
+        return Mono.fromRunnable(() -> {
+            AuthKeyEntity key = authKeyMapper.findById(keyId);
+            if (key == null) {
+                throw new IllegalArgumentException("Auth key not found: " + keyId);
+            }
+
+            authKeyMapper.deleteById(keyId);
+            log.info("Revoked auth key: {}", keyId);
+        }).subscribeOn(Schedulers.boundedElastic()).then();
+    }
+
+    @Override
+    public Mono<Integer> revokeUserServiceKeys(String userId, String serviceId) {
+        return Mono.fromCallable(() -> {
+            List<AuthKeyEntity> keys = authKeyMapper.findByUserIdAndServiceId(userId, serviceId);
+            int revokedCount = 0;
+
+            for (AuthKeyEntity key : keys) {
+                if (key.getIsActive()) {
+                    authKeyMapper.deleteById(key.getId());
+                    revokedCount++;
+                }
+            }
+
+            log.info("Revoked {} keys for user {} and service {}", revokedCount, userId, serviceId);
+            return revokedCount;
+        }).subscribeOn(Schedulers.boundedElastic());
+    }
+
+    @Override
+    public Mono<AuthKeyResponse> updateKeyStatus(Long keyId, Boolean isActive) {
+        return Mono.fromCallable(() -> {
+            AuthKeyEntity key = authKeyMapper.findById(keyId);
+            if (key == null) {
+                throw new IllegalArgumentException("Auth key not found: " + keyId);
+            }
+
+            key.setIsActive(isActive);
+            authKeyMapper.update(key);
+            log.info("Updated auth key {} status to {}", keyId, isActive);
+
+            MCPServiceEntity service = serviceMapper.findByServiceId(key.getMCPServiceId());
+            return buildAuthKeyResponse(key, service != null ? service.getName() : "Unknown");
+        }).subscribeOn(Schedulers.boundedElastic());
+    }
+
+    @Override
+    public Mono<AuthKeyResponse> renewAuthKey(Long keyId, long extendHours) {
+        return Mono.fromCallable(() -> {
+            AuthKeyEntity key = authKeyMapper.findById(keyId);
+            if (key == null) {
+                throw new IllegalArgumentException("Auth key not found: " + keyId);
+            }
+
+            LocalDateTime newExpireTime;
+            if (extendHours <= 0) {
+                // 设置为永不过期
+                newExpireTime = null;
+            } else {
+                LocalDateTime currentExpire = key.getExpiresAt();
+                if (currentExpire == null || currentExpire.isBefore(LocalDateTime.now())) {
+                    // 如果当前已过期或永不过期，从现在开始延长
+                    newExpireTime = LocalDateTime.now().plusHours(extendHours);
+                } else {
+                    // 在当前过期时间基础上延长
+                    newExpireTime = currentExpire.plusHours(extendHours);
+                }
+            }
+
+            key.setExpiresAt(newExpireTime);
+            key.setIsActive(true); // 续期时激活密钥
+            authKeyMapper.update(key);
+            log.info("Renewed auth key: {}, new expire time: {}", keyId, newExpireTime);
+
+            MCPServiceEntity service = serviceMapper.findByServiceId(key.getMCPServiceId());
+            return buildAuthKeyResponse(key, service != null ? service.getName() : "Unknown");
+        }).subscribeOn(Schedulers.boundedElastic());
+    }
+
+    /**
+     * 生成认证密钥实体
+     */
+    private AuthKeyEntity generateAuthKey(String userId, String serviceId, Long expireHours) {
+        if (expireHours != null && expireHours > 0) {
+            return AuthKeyGenerator.buildAuthKeyEntityWithExpiry(userId, serviceId, expireHours);
+        } else {
+            return AuthKeyGenerator.buildAuthKeyEntity(userId, serviceId);
+        }
+    }
+
+    private AuthKeyResponse buildAuthKeyResponse(AuthKeyEntity key, String serviceName) {
+        return AuthKeyResponse.builder()
+                .id(key.getId())
+                .keyHash(key.getKeyHash())
+                .userId(key.getUserId())
+                .serviceId(key.getMCPServiceId())
+                .serviceName(serviceName)
+                .expiresAt(key.getExpiresAt())
+                .isActive(key.getIsActive())
+                .createdAt(key.getCreatedAt())
+                .lastUsedAt(key.getLastUsedAt())
+                .build();
+    }
+}
