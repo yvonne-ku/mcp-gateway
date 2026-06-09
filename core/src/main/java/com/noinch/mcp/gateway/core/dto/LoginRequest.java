@@ -5,7 +5,9 @@ import lombok.Data;
 
 @Data
 public class LoginRequest {
-    @NotBlank(message = "User ID cannot be blank")
+
+    @NotBlank
     private String userId;
+
     private String password; // reserved for future credential-based auth
 }
