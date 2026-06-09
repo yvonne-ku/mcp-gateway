@@ -36,3 +36,17 @@
   - 自动连接 light-server 和 lock-server，获取远程工具列表
   - 对外暴露 REST API（/api/tool/list、/api/tool/call、/api/tool/search）
   - 根据工具名或服务名路由到对应的 MCP Server 执行工具调用
+
+### 4. auth（认证鉴权模块）
+
+基于 **JWT 双 Token + Redis 黑白名单** 的 WebFlux 认证鉴权模块，以 WebFilter 形式嵌入网关请求链，对 Management 和 Proxy 模块提供统一鉴权能力。
+
+| 端点 | 功能 |
+|---|---|
+| `POST /api/auth/login` | 签发 Access Token（2h）+ Refresh Token（3d），Refresh Token 写入 Redis 白名单 |
+| `POST /api/auth/logout` | Access Token 加入 Redis 黑名单，Refresh Token 从白名单删除 |
+| `POST /api/auth/refresh` | 校验 Refresh Token（JWT + Redis 白名单），签发新双 Token |
+
+**鉴权链路**：停用开关 → 路径白名单 → IP 白名单 → JWT 校验 → Redis 黑名单 → 放行
+
+详见 [auth/README.md](auth/README.md)。
