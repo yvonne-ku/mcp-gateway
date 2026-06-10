@@ -1,13 +1,13 @@
 package com.noinch.mcp.gateway.persist.mapper;
 
 import com.noinch.mcp.gateway.core.dto.StatsSummary;
-import com.noinch.mcp.gateway.core.entity.AuthCallLogEntity;
+import com.noinch.mcp.gateway.core.entity.CallLogEntity;
 import org.apache.ibatis.annotations.*;
 
 import java.util.List;
 
 @Mapper
-public interface AuthCallLogMapper {
+public interface CallLogMapper {
 
     /**
      * 插入调用日志
@@ -21,7 +21,7 @@ public interface AuthCallLogMapper {
                 #{responseTimeMs}, #{errorMessage}, #{createdAt})
         """)
     @Options(useGeneratedKeys = true, keyProperty = "id")
-    void insert(AuthCallLogEntity authCallLogEntity);
+    void insert(CallLogEntity callLogEntity);
 
     /**
      * 按条件查询调用统计（聚合）

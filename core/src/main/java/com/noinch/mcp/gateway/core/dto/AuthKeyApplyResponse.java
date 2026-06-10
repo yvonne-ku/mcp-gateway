@@ -7,7 +7,7 @@ import java.time.LocalDateTime;
 
 @Data
 @Builder
-public class AuthKeyResponse {
+public class AuthKeyApplyResponse {
     private Long id;
     private String keyHash; // 返回给前端的key（生产环境可能需要脱敏）
     private String userId;

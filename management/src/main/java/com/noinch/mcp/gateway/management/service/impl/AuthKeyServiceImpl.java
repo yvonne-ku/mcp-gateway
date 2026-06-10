@@ -1,14 +1,14 @@
 package com.noinch.mcp.gateway.management.service.impl;
 
 import com.noinch.mcp.gateway.core.dto.AuthKeyApplyRequest;
-import com.noinch.mcp.gateway.core.dto.AuthKeyResponse;
+import com.noinch.mcp.gateway.core.dto.AuthKeyApplyResponse;
 import com.noinch.mcp.gateway.core.dto.BatchAuthKeyApplyRequest;
 import com.noinch.mcp.gateway.core.dto.BatchAuthKeyApplyResponse;
 import com.noinch.mcp.gateway.core.entity.AuthKeyEntity;
 import com.noinch.mcp.gateway.core.entity.MCPServiceEntity;
 import com.noinch.mcp.gateway.core.tool.AuthKeyGenerator;
 import com.noinch.mcp.gateway.management.service.AuthKeyService;
-import com.noinch.mcp.gateway.persist.mapper.AuthKeyMapper;
+import com.noinch.mcp.gateway.persist.mapper.AuthApiKeyMapper;
 import com.noinch.mcp.gateway.persist.mapper.MCPServiceMapper;
 import lombok.AllArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -30,11 +30,11 @@ import java.util.stream.Collectors;
 @AllArgsConstructor
 public class AuthKeyServiceImpl implements AuthKeyService {
 
-    private final AuthKeyMapper authKeyMapper;
+    private final AuthApiKeyMapper authApiKeyMapper;
     private final MCPServiceMapper serviceMapper;
 
     @Override
-    public Mono<AuthKeyResponse> applyAuthKey(AuthKeyApplyRequest request) {
+    public Mono<AuthKeyApplyResponse> applyAuthKey(AuthKeyApplyRequest request) {
         return Mono.fromCallable(() -> {
             // 验证服务合法性
             MCPServiceEntity service = serviceMapper.findByServiceId(request.getServiceId());
@@ -43,7 +43,7 @@ public class AuthKeyServiceImpl implements AuthKeyService {
             }
 
             // 检查用户是否已有该服务器的有效密钥
-            List<AuthKeyEntity> existingKeys = authKeyMapper.findByUserIdAndServiceId(request.getUserId(), request.getServiceId());
+            List<AuthKeyEntity> existingKeys = authApiKeyMapper.findByUserIdAndServiceId(request.getUserId(), request.getServiceId());
             long activeKeysCount = existingKeys.stream()
                     .filter(key -> key.getIsActive() && (key.getExpiresAt() == null || key.getExpiresAt().isAfter(LocalDateTime.now())))
                     .count();
@@ -53,7 +53,7 @@ public class AuthKeyServiceImpl implements AuthKeyService {
 
             // 生成新的密钥
             AuthKeyEntity authKey = generateAuthKey(request.getUserId(), request.getServiceId(), request.getExpireHours());
-            authKeyMapper.insert(authKey);
+            authApiKeyMapper.insert(authKey);
             log.info("Generated auth key for user {} and service {}", request.getUserId(), request.getServiceId());
 
             return buildAuthKeyResponse(authKey, service.getName());
@@ -63,7 +63,7 @@ public class AuthKeyServiceImpl implements AuthKeyService {
     @Override
     public Mono<BatchAuthKeyApplyResponse> batchApplyAuthKeys(BatchAuthKeyApplyRequest request) {
         return Mono.fromCallable(() -> {
-            List<AuthKeyResponse> successKeys = new ArrayList<>();
+            List<AuthKeyApplyResponse> successKeys = new ArrayList<>();
             List<BatchAuthKeyApplyResponse.FailedService> failedServices = new ArrayList<>();
             List<String> skippedServices = new ArrayList<>();
 
@@ -80,7 +80,7 @@ public class AuthKeyServiceImpl implements AuthKeyService {
                     }
 
                     // 检查用户是否已有该服务器的有效密钥
-                    List<AuthKeyEntity> existingKeys = authKeyMapper.findByUserIdAndServiceId(request.getUserId(), serviceId);
+                    List<AuthKeyEntity> existingKeys = authApiKeyMapper.findByUserIdAndServiceId(request.getUserId(), serviceId);
                     long activeKeysCount = existingKeys.stream()
                             .filter(key -> key.getIsActive() && (key.getExpiresAt() == null || key.getExpiresAt().isAfter(LocalDateTime.now())))
                             .count();
@@ -101,9 +101,9 @@ public class AuthKeyServiceImpl implements AuthKeyService {
 
                     // 生成新的密钥
                     AuthKeyEntity authKey = generateAuthKey(request.getUserId(), serviceId, request.getExpireHours());
-                    authKeyMapper.insert(authKey);
-                    AuthKeyResponse authKeyResponse = buildAuthKeyResponse(authKey, service.getName());
-                    successKeys.add(authKeyResponse);
+                    authApiKeyMapper.insert(authKey);
+                    AuthKeyApplyResponse authKeyApplyResponse = buildAuthKeyResponse(authKey, service.getName());
+                    successKeys.add(authKeyApplyResponse);
                     log.info("Generated auth key for user {} and service {}", request.getUserId(), serviceId);
 
                 } catch (Exception e) {
@@ -129,8 +129,8 @@ public class AuthKeyServiceImpl implements AuthKeyService {
     }
 
     @Override
-    public Flux<AuthKeyResponse> getUserAuthKeys(String userId) {
-        return Mono.fromCallable(() -> authKeyMapper.findByUserId(userId))
+    public Flux<AuthKeyApplyResponse> getUserAuthKeys(String userId) {
+        return Mono.fromCallable(() -> authApiKeyMapper.findByUserId(userId))
                 .subscribeOn(Schedulers.boundedElastic())
                 .flatMapMany(keys -> Flux.fromIterable(keys)
                         .map(key -> {
@@ -140,12 +140,12 @@ public class AuthKeyServiceImpl implements AuthKeyService {
     }
 
     @Override
-    public Mono<Page<AuthKeyResponse>> getAllAuthKeys(String userId, String serviceId, Boolean isActive, Pageable pageable) {
+    public Mono<Page<AuthKeyApplyResponse>> getAllAuthKeys(String userId, String serviceId, Boolean isActive, Pageable pageable) {
         return Mono.fromCallable(() -> {
             // 数据
-            List<AuthKeyEntity> keys = authKeyMapper.findByConditions(userId, serviceId, isActive,
+            List<AuthKeyEntity> keys = authApiKeyMapper.findByConditions(userId, serviceId, isActive,
                     (int) pageable.getOffset(), pageable.getPageSize());
-            List<AuthKeyResponse> responses = keys.stream()
+            List<AuthKeyApplyResponse> responses = keys.stream()
                     .map(key -> {
                         MCPServiceEntity service = serviceMapper.findByServiceId(key.getMCPServiceId());
                         return buildAuthKeyResponse(key, service != null ? service.getName() : "Unknown");
@@ -153,21 +153,21 @@ public class AuthKeyServiceImpl implements AuthKeyService {
                     .collect(Collectors.toList());
 
             // 统计总数
-            long total = authKeyMapper.countByConditions(userId, serviceId, isActive);
+            long total = authApiKeyMapper.countByConditions(userId, serviceId, isActive);
 
-            return (Page<AuthKeyResponse>) new PageImpl<>(responses, pageable, total);
+            return (Page<AuthKeyApplyResponse>) new PageImpl<>(responses, pageable, total);
         }).subscribeOn(Schedulers.boundedElastic());
     }
 
     @Override
     public Mono<Void> revokeAuthKey(Long keyId) {
         return Mono.fromRunnable(() -> {
-            AuthKeyEntity key = authKeyMapper.findById(keyId);
+            AuthKeyEntity key = authApiKeyMapper.findById(keyId);
             if (key == null) {
                 throw new IllegalArgumentException("Auth key not found: " + keyId);
             }
 
-            authKeyMapper.deleteById(keyId);
+            authApiKeyMapper.deleteById(keyId);
             log.info("Revoked auth key: {}", keyId);
         }).subscribeOn(Schedulers.boundedElastic()).then();
     }
@@ -175,12 +175,12 @@ public class AuthKeyServiceImpl implements AuthKeyService {
     @Override
     public Mono<Integer> revokeUserServiceKeys(String userId, String serviceId) {
         return Mono.fromCallable(() -> {
-            List<AuthKeyEntity> keys = authKeyMapper.findByUserIdAndServiceId(userId, serviceId);
+            List<AuthKeyEntity> keys = authApiKeyMapper.findByUserIdAndServiceId(userId, serviceId);
             int revokedCount = 0;
 
             for (AuthKeyEntity key : keys) {
                 if (key.getIsActive()) {
-                    authKeyMapper.deleteById(key.getId());
+                    authApiKeyMapper.deleteById(key.getId());
                     revokedCount++;
                 }
             }
@@ -191,15 +191,15 @@ public class AuthKeyServiceImpl implements AuthKeyService {
     }
 
     @Override
-    public Mono<AuthKeyResponse> updateKeyStatus(Long keyId, Boolean isActive) {
+    public Mono<AuthKeyApplyResponse> updateKeyStatus(Long keyId, Boolean isActive) {
         return Mono.fromCallable(() -> {
-            AuthKeyEntity key = authKeyMapper.findById(keyId);
+            AuthKeyEntity key = authApiKeyMapper.findById(keyId);
             if (key == null) {
                 throw new IllegalArgumentException("Auth key not found: " + keyId);
             }
 
             key.setIsActive(isActive);
-            authKeyMapper.update(key);
+            authApiKeyMapper.update(key);
             log.info("Updated auth key {} status to {}", keyId, isActive);
 
             MCPServiceEntity service = serviceMapper.findByServiceId(key.getMCPServiceId());
@@ -208,9 +208,9 @@ public class AuthKeyServiceImpl implements AuthKeyService {
     }
 
     @Override
-    public Mono<AuthKeyResponse> renewAuthKey(Long keyId, long extendHours) {
+    public Mono<AuthKeyApplyResponse> renewAuthKey(Long keyId, long extendHours) {
         return Mono.fromCallable(() -> {
-            AuthKeyEntity key = authKeyMapper.findById(keyId);
+            AuthKeyEntity key = authApiKeyMapper.findById(keyId);
             if (key == null) {
                 throw new IllegalArgumentException("Auth key not found: " + keyId);
             }
@@ -232,7 +232,7 @@ public class AuthKeyServiceImpl implements AuthKeyService {
 
             key.setExpiresAt(newExpireTime);
             key.setIsActive(true); // 续期时激活密钥
-            authKeyMapper.update(key);
+            authApiKeyMapper.update(key);
             log.info("Renewed auth key: {}, new expire time: {}", keyId, newExpireTime);
 
             MCPServiceEntity service = serviceMapper.findByServiceId(key.getMCPServiceId());
@@ -251,8 +251,8 @@ public class AuthKeyServiceImpl implements AuthKeyService {
         }
     }
 
-    private AuthKeyResponse buildAuthKeyResponse(AuthKeyEntity key, String serviceName) {
-        return AuthKeyResponse.builder()
+    private AuthKeyApplyResponse buildAuthKeyResponse(AuthKeyEntity key, String serviceName) {
+        return AuthKeyApplyResponse.builder()
                 .id(key.getId())
                 .keyHash(key.getKeyHash())
                 .userId(key.getUserId())

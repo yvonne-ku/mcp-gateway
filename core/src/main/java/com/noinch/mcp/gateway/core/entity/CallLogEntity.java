@@ -11,7 +11,7 @@ import java.time.LocalDateTime;
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
-public class AuthCallLogEntity {
+public class CallLogEntity {
     private Long id;
     private String userId;
     private String serviceId;

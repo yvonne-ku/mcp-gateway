@@ -6,7 +6,7 @@ import org.apache.ibatis.annotations.*;
 import java.util.List;
 
 @Mapper
-public interface AuthKeyMapper {
+public interface AuthApiKeyMapper {
 
     /**
      * 插入

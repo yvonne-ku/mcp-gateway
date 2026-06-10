@@ -7,12 +7,13 @@ import java.util.ArrayList;
 import java.util.List;
 
 @Data
-@ConfigurationProperties(prefix = "noinch.mcp.client")
+@ConfigurationProperties(prefix = McpClientProperties.PREFIX)
 public class McpClientProperties {
 
-    /** 本客户端的名称，用于 initialize 握手时告知服务端 */
+    public static final String PREFIX = "noinch.mcp.client";
+
     private String clientName = "mcp-client-starter";
-    /** 本客户端的版本，用于 initialize 握手时告知服务端 */
+
     private String clientVersion = "1.0.0";
 
     /** 要连接的 MCP Server 列表 */

@@ -9,7 +9,7 @@ import java.util.List;
 @Builder
 public class BatchAuthKeyApplyResponse {
     // 成功申请的密钥列表
-    private List<AuthKeyResponse> successKeys;
+    private List<AuthKeyApplyResponse> successKeys;
 
     // 失败的服务ID及原因
     private List<FailedService> failedServices;
