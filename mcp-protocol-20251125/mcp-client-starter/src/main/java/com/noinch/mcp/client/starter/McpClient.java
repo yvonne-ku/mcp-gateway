@@ -36,6 +36,7 @@ import java.util.concurrent.atomic.AtomicLong;
  * <ul>
  *   <li>GET /mcp → 建立 SSE 连接，从响应头 {@code Mcp-Session-Id} 获取会话 ID</li>
  *   <li>POST /mcp → 发送 JSON-RPC 请求，通过 {@code Mcp-Session-Id} 头传递会话 ID</li>
+ *   <li>DELETE /mcp → 客户端主动请求断开连接，通过 {@code Mcp-Session-Id} 头传递会话 ID</li>
  *   <li>所有请求携带 {@code MCP-Protocol-Version} 头</li>
  * </ul>
  */
@@ -106,7 +107,6 @@ public class McpClient {
                 .accept(MediaType.TEXT_EVENT_STREAM)
                 // 手动处理 ClientResponse（reactive） 返回
                 .exchangeToMono(response -> {
-                    // 提取 sessionId
                     List<String> sessionIdHeaders = response.headers().header(McpConstants.HEADER_SESSION_ID);
                     if (sessionIdHeaders.isEmpty()) {
                         return Mono.error(new RuntimeException("Server did not return Mcp-Session-Id header"));
@@ -114,19 +114,15 @@ public class McpClient {
                     this.sessionId = sessionIdHeaders.get(0);
                     log.debug("SSE connection established, sessionId={}", this.sessionId);
 
-                    // 对 SSE 连接端口发起 HTTP GET 请求后，服务器会源源不断推送 SSE 事件（每个事件是一个 ServerSentEvent 对象）
-                    // 这里定义 SSE 事件流处理器
-                    // 将 response 转成流式多次的 Flux，定义事件处理函数
-                    // 这个 Flux 流需要一个消费者去订阅（订阅一个空消费者，防止连接关闭），才能保证被强引用，就不会被 GC
-                    // 如果被 GC 会导致 SSE 连接断开
+                    // 对 SSE 连接端口发起 HTTP GET 请求后，服务器会返回一个流对象（在服务端与事件推送器 Sinks.many 绑定），用于不断推送 SSE 事件（每个事件是一个 ServerSentEvent 对象）
+                    // 客户端拿到流对象后，需要订阅流对象，并且定义流事件到达时的处理函数
+                    // 这里先从 ClientResponse 解析出流对象，然后进行订阅，和事件消费
                     this.sseFlux = response.bodyToFlux(new ParameterizedTypeReference<ServerSentEvent<String>>() {})
-                            .doOnNext(this::handleSseEvent)
                             .doOnError(e -> log.error("SSE stream error: {}", e.getMessage()))
                             .retryWhen(Retry.backoff(3, Duration.ofSeconds(1)))
                             .share();
-                    // TODO 这个地方不需要对业务事件进行任何的消费吗，万一是我 POST 请求的消息呢
                     this.sseDisposable = this.sseFlux.subscribe(
-                            event -> {},
+                            this::handleSseEvent,
                             err -> log.error("SSE subscription error", err),
                             () -> log.debug("SSE stream completed")
                     );
@@ -135,13 +131,14 @@ public class McpClient {
     }
 
     /**
-     * 过滤出事件类型为 “message” 的业务推送事件，并进行基本的处理
+     * 消费 SSE Event
      */
     private void handleSseEvent(ServerSentEvent<String> event) {
-        // 检查是否是业务推送事件
+        // 过滤非业务推送事件
         if (!McpConstants.SSE_EVENT_MESSAGE.equals(event.event())) {
             return;
         }
+
         // 处理业务推送事件
         String data = event.data();
         if (data == null || data.isBlank()) {
@@ -150,9 +147,10 @@ public class McpClient {
         try {
             JsonRpcResponse response = JsonRpcCodec.fromJson(data, JsonRpcResponse.class);
             if (response != null && response.getId() != null) {
-                Object id = response.getId();
-                Sinks.One<JsonRpcResponse> sink = pendingRequests.remove(id);
-                // 判空。（为了防止异步交错，在POST响应和SSE端口重复处理同一个请求id，请让服务端永远只在其中之一的端口返回某一请求id的响应）
+                Object id = response.getId();   // 这个是 session 的自增 eventId
+                Sinks.One<JsonRpcResponse> sink = pendingRequests.remove(id);   // 拿出这个 eventId 的 Sinks.One 对象
+                // sink 发送事件，于是 sink 绑定的 Mono 对象中有了内容
+                // 有内容之后，你在 sendRequest 函数查看响应的时候，就可以判断是从 POST 的响应中拿还是从 sink.asMono() 里拿
                 if (sink != null) {
                     if (response.getError() != null) {
                         sink.tryEmitError(new RuntimeException("JSON-RPC error: " + response.getError()));
@@ -183,14 +181,12 @@ public class McpClient {
         return sendRequest(McpConstants.METHOD_INITIALIZE, params)
                 .flatMap(response -> {
                     log.debug("Initialize response received: {}", response);
-                    // 发送 initialized 通知（单向，不需要等待响应）
                     return sendNotification(McpConstants.METHOD_INITIALIZED, Map.of());
                 });
     }
 
     /**
      * 关闭客户端，终止会话并释放资源。
-     * @return Mono<Void>
      */
     public Mono<Void> close() {
         // 1. sseFlux，SSE 连接订阅
@@ -221,7 +217,7 @@ public class McpClient {
 
 
     /**
-     * 发送 JSON-RPC 请求，并返回等待响应的 Mono。
+     * 发送 JSON-RPC 请求，并返回 Post 或者 Sse 响应
      */
     private Mono<JsonRpcResponse> sendRequest(String method, Map<String, Object> params) {
         // 创建请求
@@ -234,9 +230,10 @@ public class McpClient {
 
         // 发送请求
         return postJsonRpcMessage(request)
-                // 模式 D：如果 POST 响应里有数据直接用，没有数据才去等待全局 SSE 的监听器发射数据
+                // 如果 POST 响应里有数据直接用，没有则等待 sink 里面的数据被 handleSseEvent 方法 sink.tryEmitValue(response);
                 .switchIfEmpty(sink.asMono())
                 .timeout(Duration.ofSeconds(10))
+                // 不管哪种处理方式，响应数据拿到了，都可以删掉这个 requestId 了
                 .doFinally(signal -> pendingRequests.remove(id));
     }
 
@@ -253,8 +250,6 @@ public class McpClient {
 
     /**
      * 发送 JSON-RPC 消息（请求或通知）。
-     * @param message: JsonRpcRequest / JsonRpcNotification
-     * @return Mono<JsonRpcResponse> 如果服务端在 POST 中直接返回了响应则携带数据，否则返回 Mono.empty()
      */
     private Mono<JsonRpcResponse> postJsonRpcMessage(Object message) {
         String json = JsonRpcCodec.toJson(message);
@@ -268,30 +263,16 @@ public class McpClient {
                 .exchangeToMono(resp -> {
                     // 1. 先判断是否是错误状态码，是则返回 Mono.error
                     if (resp.statusCode().isError()) {
-                        return resp.bodyToMono(String.class)
-                                .flatMap(body -> Mono.error(new RuntimeException("HTTP error " + resp.statusCode() + ": " + body)));
+                        return resp.bodyToMono(String.class).flatMap(body -> Mono.error(new RuntimeException("HTTP error " + resp.statusCode() + ": " + body)));
                     }
 
-                    // 2. 获取 Content-Type 动态处理
-                    MediaType contentType = resp.headers().contentType().orElse(MediaType.APPLICATION_JSON);
-                    if (MediaType.APPLICATION_JSON.isCompatibleWith(contentType)) {
-                        // 模式 A：服务端直接在 POST 响应体中返回了结果（绝大多数标准请求的默认行为）
-                        return resp.bodyToMono(JsonRpcResponse.class);
-                    } else if (MediaType.TEXT_EVENT_STREAM.isCompatibleWith(contentType)) {
-                        // 模式 B：服务端针对该 POST 请求启用了局部流式响应
-                        return resp.bodyToFlux(new ParameterizedTypeReference<ServerSentEvent<String>>() {})
-                                .flatMap(event -> {
-                                    if (McpConstants.SSE_EVENT_MESSAGE.equals(event.event()) && event.data() != null) {
-                                        JsonRpcResponse r = JsonRpcCodec.fromJson(event.data(), JsonRpcResponse.class);
-                                        return r != null ? Mono.just(r) : Mono.empty();
-                                    }
-                                    return Mono.empty();
-                                })
-                                .next(); // 提取局部流中的第一个有效响应
+                    // 2. 如果是 202 Accepted 或 204 No Content，安全释放资源并抛出空流，让上层的 sink 接管
+                    if (resp.statusCode() == HttpStatus.ACCEPTED || resp.statusCode() == HttpStatus.NO_CONTENT) {
+                        return resp.releaseBody().then(Mono.empty());
                     }
-                    // 模式 C：202 Accepted 或无内容（如客户端发送的是 Notification），安全释放并返回空
-                    return resp.releaseBody().then(Mono.empty());
-                    // 模式 D：在 request 情况下返回空内容，需要去全局 sse 端口使用 sink 实例等待响应
+
+                    // 3. 正常直接返回了 JSON 结果，解析并交给上层
+                    return resp.bodyToMono(JsonRpcResponse.class);
                 });
     }
 
@@ -301,7 +282,6 @@ public class McpClient {
 
     /**
      * 列出服务端所有可用工具。
-     * @return Flux<ToolDefinition> 工具定义流
      */
     @SuppressWarnings("unchecked")
     public Flux<ToolDefinition> listTools() {
@@ -325,9 +305,6 @@ public class McpClient {
 
     /**
      * 调用指定工具。
-     * @param name 工具名称
-     * @param arguments 参数
-     * @return Mono<CallToolResult> 调用结果
      */
     @SuppressWarnings("unchecked")
     public Mono<CallToolResult> callTool(String name, Map<String, Object> arguments) {

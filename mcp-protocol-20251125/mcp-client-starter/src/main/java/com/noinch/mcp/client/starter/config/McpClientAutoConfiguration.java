@@ -26,7 +26,7 @@ public class McpClientAutoConfiguration {
     private final List<McpClient> managedClients = new ArrayList<>();
 
     /**
-     * 通过配置文件创建 managedClients
+     * 通过配置文件创建 McpClient，并存入本地 managedClients 管理
      */
     @Bean
     public Map<String, McpClient> mcpClients(McpClientProperties properties) {

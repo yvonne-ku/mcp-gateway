@@ -38,7 +38,7 @@ public class McpToolRegistry {
     }
 
     /**
-     * 获取所有工具定义（用于 tools/list 响应）
+     * 获取所有工具定义
      */
     public List<ToolDefinition> listToolDefinitions() {
         List<ToolDefinition> definitions = new ArrayList<>();

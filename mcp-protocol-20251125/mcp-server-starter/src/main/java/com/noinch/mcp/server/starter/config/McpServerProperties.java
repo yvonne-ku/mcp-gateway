@@ -5,6 +5,7 @@ import com.noinch.mcp.protocol.core.mcp.model.ServerInfo;
 import lombok.Data;
 import org.springframework.boot.context.properties.ConfigurationProperties;
 
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 
@@ -27,9 +28,11 @@ public class McpServerProperties {
     /** 允许的 Origin 白名单（防 DNS rebinding），空列表表示不校验 */
     private List<String> allowedOrigins = List.of();
 
+    /** 需要使用 SSE 流式返回的 JSON‑RPC 方法名列表，默认只有 tools/call */
+    private List<String> sseMethods = new ArrayList<>(List.of("tools/call"));
+
     /** 构建 ServerInfo，用于 initialize 响应 */
     public ServerInfo toServerInfo() {
         return ServerInfo.builder().name(name).version(version).build();
     }
-
 }

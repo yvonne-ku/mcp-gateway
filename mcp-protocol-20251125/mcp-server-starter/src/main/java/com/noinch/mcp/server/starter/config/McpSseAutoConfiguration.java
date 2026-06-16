@@ -1,7 +1,7 @@
 package com.noinch.mcp.server.starter.config;
 
 import com.noinch.mcp.protocol.core.mcp.registry.McpToolRegistry;
-import com.noinch.mcp.server.starter.McpSseController;
+import com.noinch.mcp.server.starter.McpController;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.boot.autoconfigure.AutoConfiguration;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
@@ -17,7 +17,7 @@ import org.springframework.util.ClassUtils;
  * <p> 工作内容：
  * 创建注册中心 {@link McpToolRegistry} 的 Bean
  * 自动扫描所有 {@code @McpTool} 方法并注册到 {@link McpToolRegistry}，
- * 同时注册 {@link McpSseController} 处理 SSE 连接和 JSON-RPC 消息。
+ * 同时注册 {@link McpController} 处理 SSE 连接和 JSON-RPC 消息。
  * <p> 功能实现：
  * 1. 基于 JSON-RPC 2.0
  * 2. 支持 SSE 连接
@@ -55,7 +55,7 @@ public class McpSseAutoConfiguration {
 
     @Bean
     @ConditionalOnMissingBean
-    public McpSseController mcpSseController(McpToolRegistry toolRegistry, McpServerProperties properties) {
-        return new McpSseController(toolRegistry, properties);
+    public McpController mcpSseController(McpToolRegistry toolRegistry, McpServerProperties properties) {
+        return new McpController(toolRegistry, properties);
     }
 }
