@@ -17,6 +17,8 @@ public class LoginResponse {
 
     private String tokenType;
 
+    private String role;
+
     @Builder.Default
     private boolean success = true;
     private String message;

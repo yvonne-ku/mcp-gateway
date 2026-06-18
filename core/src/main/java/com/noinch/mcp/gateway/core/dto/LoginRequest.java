@@ -9,5 +9,6 @@ public class LoginRequest {
     @NotBlank
     private String userId;
 
-    private String password; // reserved for future credential-based auth
+    @NotBlank
+    private String password;
 }

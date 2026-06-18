@@ -27,6 +27,8 @@
         <java.version>17</java.version>
         <spring-ai.version>1.0.1</spring-ai.version>
         <spring-mybatis.version>3.0.5</spring-mybatis.version>
+        <mysql-connector-j.version>8.0.33</mysql-connector-j.version>
+        <jjwt.version>0.12.5</jjwt.version>
     </properties>
 
     <dependencies>
@@ -51,6 +53,31 @@
                 <artifactId>mybatis-spring-boot-starter</artifactId>
                 <version>${spring-mybatis.version}</version>
             </dependency>
+            <!-- MySQL JDBC Driver -->
+            <dependency>
+                <groupId>com.mysql</groupId>
+                <artifactId>mysql-connector-j</artifactId>
+                <version>${mysql-connector-j.version}</version>
+            </dependency>
+
+            <!-- JJWT -->
+            <dependency>
+                <groupId>io.jsonwebtoken</groupId>
+                <artifactId>jjwt-api</artifactId>
+                <version>${jjwt.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>io.jsonwebtoken</groupId>
+                <artifactId>jjwt-impl</artifactId>
+                <version>${jjwt.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>io.jsonwebtoken</groupId>
+                <artifactId>jjwt-jackson</artifactId>
+                <version>${jjwt.version}</version>
+            </dependency>
+
+            <!-- Internal Starters -->
             <dependency>
                 <groupId>com.noinch.mcp</groupId>
                 <artifactId>mcp-server-starter</artifactId>
@@ -59,16 +86,6 @@
             <dependency>
                 <groupId>com.noinch.mcp</groupId>
                 <artifactId>mcp-client-starter</artifactId>
-                <version>${project.version}</version>
-            </dependency>
-            <dependency>
-                <groupId>com.noinch.mcp</groupId>
-                <artifactId>auth</artifactId>
-                <version>${project.version}</version>
-            </dependency>
-            <dependency>
-                <groupId>com.noinch.mcp</groupId>
-                <artifactId>mcp-client</artifactId>
                 <version>${project.version}</version>
             </dependency>
         </dependencies>
