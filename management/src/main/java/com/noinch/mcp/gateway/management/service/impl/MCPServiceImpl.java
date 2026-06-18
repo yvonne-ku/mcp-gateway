@@ -28,7 +28,6 @@ import java.util.List;
 public class MCPServiceImpl implements MCPService {
 
     private final MCPServiceMapper serviceMapper;
-    private final WebClient webClient;
 
     @Override
     public Mono<MCPServiceEntity> createService(MCPServiceCreateRequest request) {
@@ -119,43 +118,6 @@ public class MCPServiceImpl implements MCPService {
             log.info("Updated service {} status to {}", serviceId, status);
             return service;
         }).subscribeOn(Schedulers.boundedElastic());
-    }
-
-    @Override
-    public Mono<Boolean> performHealthCheck(String serviceId) {
-        return getServiceByServiceId(serviceId)
-                .flatMap(service -> {
-                    String healthCheckUrl = service.getHealthCheckUrl();
-                    if (healthCheckUrl == null || healthCheckUrl.trim().isEmpty()) {
-                        // 如果没有健康检查URL，直接ping主endpoint
-                        healthCheckUrl = service.getEndpoint() + "/health";
-                    }
-
-                    return webClient.get()
-                            .uri(healthCheckUrl)
-                            .retrieve()
-                            .toBodilessEntity()
-                            .timeout(Duration.ofSeconds(10))
-                            .map(response -> {
-                                boolean isHealthy = response.getStatusCode().is2xxSuccessful();
-                                log.info("Health check for service {}: {}", serviceId, isHealthy ? "HEALTHY" : "UNHEALTHY");
-
-                                // 根据健康检查结果更新服务状态（异步）
-                                if (!isHealthy && ServiceStatus.ACTIVE.name().equals(service.getStatus())) {
-                                    updateServiceStatus(serviceId, ServiceStatus.MAINTENANCE).subscribe();
-                                } else if (isHealthy && ServiceStatus.MAINTENANCE.name().equals(service.getStatus())) {
-                                    updateServiceStatus(serviceId, ServiceStatus.ACTIVE).subscribe();
-                                }
-
-                                return isHealthy;
-                            })
-                            .onErrorResume(error -> {
-                                log.error("Health check failed for service {}: {}", serviceId, error.getMessage());
-                                // 健康检查失败时标记为维护状态（异步）
-                                updateServiceStatus(serviceId, ServiceStatus.MAINTENANCE).subscribe();
-                                return Mono.just(false);
-                            });
-                });
     }
 
     private MCPServiceEntity getServiceByServiceIdSync(String serviceId) {

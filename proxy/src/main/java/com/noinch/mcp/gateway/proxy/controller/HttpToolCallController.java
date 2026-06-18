@@ -10,7 +10,6 @@ import reactor.core.publisher.Mono;
 
 import java.util.Map;
 
-@Slf4j
 @RestController
 @RequestMapping("/api/tools")
 @AllArgsConstructor
@@ -22,9 +21,12 @@ public class HttpToolCallController {
      * 调用某个工具
      */
     @PostMapping("/{serviceId}/call")
-    public Mono<ResponseEntity<Object>> callTool (ServerWebExchange exchange,
-                                                  @PathVariable String serviceId,
-                                                  @RequestBody Map<String, Object> body) {
+    public Mono<ResponseEntity<Object>> callTool(ServerWebExchange exchange,
+                                                 @PathVariable String serviceId,
+                                                 @RequestBody(required = false) Map<String, Object> body) {
+        if (body == null || !body.containsKey("name")) {
+            return Mono.just(ResponseEntity.badRequest().body(Map.of("error", "Missing 'name' in request body")));
+        }
 
         String toolName = (String) body.get("name");
         @SuppressWarnings("unchecked")
@@ -32,6 +34,9 @@ public class HttpToolCallController {
         return toolService.doCall(exchange, serviceId, toolName, arguments);
     }
 
+    /**
+     * 列出某个服务下所有的工具
+     */
     @GetMapping("/{serviceId}/list")
     public Mono<ResponseEntity<Object>> listToolsOfService (ServerWebExchange exchange,
                                                    @PathVariable String serviceId) {

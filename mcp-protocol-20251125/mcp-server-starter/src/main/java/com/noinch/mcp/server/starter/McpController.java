@@ -6,7 +6,6 @@ import com.noinch.mcp.protocol.core.jsonrpc.JsonRpcNotification;
 import com.noinch.mcp.protocol.core.jsonrpc.JsonRpcRequest;
 import com.noinch.mcp.protocol.core.mcp.McpConstants;
 import com.noinch.mcp.protocol.core.mcp.model.CallToolResult;
-import com.noinch.mcp.protocol.core.mcp.registry.McpToolRegistry;
 import com.noinch.mcp.server.starter.config.McpServerProperties;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.MediaType;

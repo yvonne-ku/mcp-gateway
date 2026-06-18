@@ -41,7 +41,6 @@ import java.util.concurrent.atomic.AtomicLong;
  * </ul>
  */
 @Slf4j
-@Builder
 public class McpClient {
 
     // 连接相关
@@ -63,6 +62,7 @@ public class McpClient {
     // 资源处理相关
     private Disposable sseDisposable;
 
+    @Builder
     public McpClient(String baseUrl, String clientName, String clientVersion) {
         this.baseUrl = baseUrl;
         this.clientName = clientName;

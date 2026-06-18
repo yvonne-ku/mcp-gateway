@@ -17,5 +17,4 @@ public interface MCPService {
     Mono<Page<MCPServiceEntity>> getServices(ServiceStatus status, String name, Pageable pageable);
     Flux<MCPServiceEntity> getActiveServices();
     Mono<MCPServiceEntity> updateServiceStatus(String serviceId, ServiceStatus status);
-    Mono<Boolean> performHealthCheck(String serviceId);
 }
