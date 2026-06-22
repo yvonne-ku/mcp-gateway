@@ -42,15 +42,6 @@ public class AuthKeyServiceImpl implements AuthKeyService {
                 throw new IllegalArgumentException("Service not found: " + request.getServiceId());
             }
 
-            // 检查用户是否已有该服务器的有效密钥
-            List<AuthKeyEntity> existingKeys = authApiKeyMapper.findByUserIdAndServiceId(request.getUserId(), request.getServiceId());
-            long activeKeysCount = existingKeys.stream()
-                    .filter(key -> key.getIsActive() && (key.getExpiresAt() == null || key.getExpiresAt().isAfter(LocalDateTime.now())))
-                    .count();
-            if (activeKeysCount > 0) {
-                throw new IllegalStateException("User already has active key for this service");
-            }
-
             // 生成新的密钥
             AuthKeyEntity authKey = generateAuthKey(request.getUserId(), request.getServiceId(), request.getExpireHours());
             authApiKeyMapper.insert(authKey);
@@ -77,26 +68,6 @@ public class AuthKeyServiceImpl implements AuthKeyService {
                                 .reason("Service not found")
                                 .build());
                         continue;
-                    }
-
-                    // 检查用户是否已有该服务器的有效密钥
-                    List<AuthKeyEntity> existingKeys = authApiKeyMapper.findByUserIdAndServiceId(request.getUserId(), serviceId);
-                    long activeKeysCount = existingKeys.stream()
-                            .filter(key -> key.getIsActive() && (key.getExpiresAt() == null || key.getExpiresAt().isAfter(LocalDateTime.now())))
-                            .count();
-                    if (activeKeysCount > 0) {
-                        if (request.getSkipExisting()) {
-                            skippedServices.add(serviceId);
-                            log.info("Skipped service {} for user {} - already has active key", serviceId, request.getUserId());
-                            continue;
-                        }
-                        else {
-                            failedServices.add(BatchAuthKeyApplyResponse.FailedService.builder()
-                                    .serviceId(serviceId)
-                                    .reason("User already has active key for this service")
-                                    .build());
-                            continue;
-                        }
                     }
 
                     // 生成新的密钥

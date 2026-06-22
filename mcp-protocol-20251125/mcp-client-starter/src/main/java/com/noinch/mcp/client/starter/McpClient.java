@@ -45,8 +45,11 @@ public class McpClient {
 
     // 连接相关
     private final WebClient webClient;  // reactive 提供
+    @Getter
     private final String baseUrl;
+    @Getter
     private final String clientName;
+    @Getter
     private final String clientVersion;
 
     // 会话相关
@@ -70,6 +73,10 @@ public class McpClient {
         this.webClient = WebClient.builder()
                 .baseUrl(baseUrl)
                 .build();
+    }
+
+    public String getUrl() {
+        return baseUrl;
     }
 
 

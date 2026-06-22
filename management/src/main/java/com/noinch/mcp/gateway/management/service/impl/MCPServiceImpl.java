@@ -77,12 +77,26 @@ public class MCPServiceImpl implements MCPService {
     }
 
     @Override
-    public Mono<Void> deleteService(String serviceId) {
-        return Mono.fromRunnable(() -> {
+    public Mono<MCPServiceEntity> updateServiceStatus(String serviceId, ServiceStatus status) {
+        return Mono.fromCallable(() -> {
+            MCPServiceEntity service = getServiceByServiceIdSync(serviceId);
+            service.setStatus(String.valueOf(status));
+            service.setUpdatedAt(LocalDateTime.now());
+            serviceMapper.update(service);
+            log.info("Updated service {} status to {}", serviceId, status);
+            return service;
+        }).subscribeOn(Schedulers.boundedElastic());
+    }
+
+    @Override
+    public Mono<String> deleteService(String serviceId) {
+        return Mono.fromCallable(() -> {
             MCPServiceEntity existing = getServiceByServiceIdSync(serviceId);
+
             serviceMapper.deleteById(existing.getId());
             log.info("Deleted MCP service: {}", serviceId);
-        }).subscribeOn(Schedulers.boundedElastic()).then();
+            return serviceId;
+        }).subscribeOn(Schedulers.boundedElastic());
     }
 
     @Override
@@ -106,18 +120,6 @@ public class MCPServiceImpl implements MCPService {
         return Mono.fromCallable(() -> serviceMapper.findByStatus(ServiceStatus.ACTIVE))
                 .subscribeOn(Schedulers.boundedElastic())
                 .flatMapMany(Flux::fromIterable);
-    }
-
-    @Override
-    public Mono<MCPServiceEntity> updateServiceStatus(String serviceId, ServiceStatus status) {
-        return Mono.fromCallable(() -> {
-            MCPServiceEntity service = getServiceByServiceIdSync(serviceId);
-            service.setStatus(String.valueOf(status));
-            service.setUpdatedAt(LocalDateTime.now());
-            serviceMapper.update(service);
-            log.info("Updated service {} status to {}", serviceId, status);
-            return service;
-        }).subscribeOn(Schedulers.boundedElastic());
     }
 
     private MCPServiceEntity getServiceByServiceIdSync(String serviceId) {

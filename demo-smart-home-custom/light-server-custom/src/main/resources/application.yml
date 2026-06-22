@@ -1,7 +1,8 @@
 server:
   port: 8083
 
-mcp:
-  server:
-    name: light-server
-    version: 1.0.0
+noinch:
+  mcp:
+    server:
+      name: light-server
+      version: 1.0.0

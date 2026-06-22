@@ -11,6 +11,10 @@ spring:
       host: ${REDIS_HOST:localhost}
       port: ${REDIS_PORT:6379}
 
+mybatis:
+  configuration:
+    map-underscore-to-camel-case: true
+
 noinch:
   mcp:
     auth:

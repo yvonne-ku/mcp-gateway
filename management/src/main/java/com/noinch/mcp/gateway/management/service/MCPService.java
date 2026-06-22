@@ -12,7 +12,7 @@ import reactor.core.publisher.Mono;
 public interface MCPService {
     Mono<MCPServiceEntity> createService(MCPServiceCreateRequest request);
     Mono<MCPServiceEntity> updateService(String serviceId, MCPServiceUpdateRequest request);
-    Mono<Void> deleteService(String serviceId);
+    Mono<String> deleteService(String serviceId);
     Mono<MCPServiceEntity> getServiceByServiceId(String serviceId);
     Mono<Page<MCPServiceEntity>> getServices(ServiceStatus status, String name, Pageable pageable);
     Flux<MCPServiceEntity> getActiveServices();
